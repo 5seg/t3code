@@ -3,6 +3,7 @@ import {
   AntigravitySettings,
   ClaudeSettings,
   CodexSettings,
+  CommandCodeSettings,
   CursorSettings,
   GrokSettings,
   OpenCodeSettings,
@@ -90,6 +91,11 @@ const PROVIDER_CLIENT_DEFINITIONS: readonly ProviderClientDefinition[] = [
     value: ProviderDriverKind.make("pi"),
     label: "Pi",
     settingsSchema: PiSettings,
+  },
+  {
+    value: ProviderDriverKind.make("commandCode"),
+    label: "Command Code",
+    settingsSchema: CommandCodeSettings,
   },
   {
     value: ProviderDriverKind.make("acpRegistry"),

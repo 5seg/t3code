@@ -1,0 +1,154 @@
+import { HostProcessEnvironment } from "@t3tools/shared/hostProcess";
+import { resolveSelfInvocation, type SelfInvocation } from "@t3tools/shared/nodeRuntime";
+import { CommandCodeSettings, ProviderDriverKind } from "@t3tools/contracts";
+import * as Crypto from "effect/Crypto";
+import * as Effect from "effect/Effect";
+import * as FileSystem from "effect/FileSystem";
+import type * as Path from "effect/Path";
+import * as Schema from "effect/Schema";
+import type * as Scope from "effect/Scope";
+import { ChildProcessSpawner } from "effect/unstable/process";
+import type * as EffectAcpErrors from "effect-acp/errors";
+
+import * as ServerConfig from "../../config.ts";
+import { makeAcpNativeLoggerFactory } from "../../provider/acp/AcpNativeLogging.ts";
+import type * as AcpSessionRuntime from "../../provider/acp/AcpSessionRuntime.ts";
+import {
+  commandCodeSessionMode,
+  extractCommandCodeQuestion,
+  makeCommandCodeAcpRuntime,
+} from "../../provider/acp/CommandCodeAcpSupport.ts";
+import * as ProviderEventLoggers from "../../provider/Layers/ProviderEventLoggers.ts";
+import { mergeProviderInstanceEnvironment } from "../../provider/ProviderInstanceEnvironment.ts";
+import * as IdAllocator from "../IdAllocator.ts";
+import {
+  ProviderAdapterDriverCreateError,
+  type ProviderAdapterDriver,
+  type ProviderAdapterDriverCreateInput,
+} from "../ProviderAdapterDriver.ts";
+import {
+  AcpProviderCapabilitiesV2,
+  makeAcpAdapterV2,
+  type AcpAdapterV2Flavor,
+  type AcpAdapterV2RuntimeInput,
+} from "./AcpAdapterV2.ts";
+
+const COMMAND_CODE_PROVIDER = ProviderDriverKind.make("commandCode");
+
+const DEFAULT_COMMAND_CODE_SETTINGS = Schema.decodeSync(CommandCodeSettings)({});
+
+interface CommandCodeAdapterV2Options {
+  readonly instanceId: Parameters<typeof makeAcpAdapterV2>[0]["instanceId"];
+  readonly settings: CommandCodeSettings;
+  readonly environment: NodeJS.ProcessEnv;
+  readonly childProcessSpawner: ChildProcessSpawner.ChildProcessSpawner["Service"];
+  readonly crypto: Crypto.Crypto;
+  readonly selfInvocation: SelfInvocation;
+  readonly fileSystem: FileSystem.FileSystem;
+  readonly idAllocator: IdAllocator.IdAllocatorV2["Service"];
+  readonly serverConfig: ServerConfig.ServerConfig["Service"];
+  readonly nativeLogging?: Parameters<typeof makeAcpAdapterV2>[0]["nativeLogging"];
+  readonly makeRuntime?: (
+    input: AcpAdapterV2RuntimeInput,
+  ) => Effect.Effect<
+    AcpSessionRuntime.AcpSessionRuntime["Service"],
+    EffectAcpErrors.AcpError,
+    Crypto.Crypto | Scope.Scope
+  >;
+}
+
+function makeCommandCodeAdapterV2(options: CommandCodeAdapterV2Options) {
+  const flavor: AcpAdapterV2Flavor = {
+    driver: COMMAND_CODE_PROVIDER,
+    runtimeHarness: "Command Code",
+    // Command Code advertises session/load, model config options, and MCP over
+    // stdio, which the shared ACP capabilities negotiate. Its ACP surface has no
+    // conversation truncation, so rollback resets the session as in other ACP
+    // agents. A runtime-mode change reopens the session because the live
+    // session is not reconfigured for a mode-only change.
+    capabilities: AcpProviderCapabilitiesV2,
+    makeRuntime:
+      options.makeRuntime ??
+      ((input) =>
+        makeCommandCodeAcpRuntime({
+          ...input,
+          binaryPath: options.settings.binaryPath,
+          environment: options.environment,
+          childProcessSpawner: options.childProcessSpawner,
+        })),
+    sessionModeForPolicy: (policy) => commandCodeSessionMode(policy.runtimeMode),
+    extractPermissionQuestion: extractCommandCodeQuestion,
+    // `/compact` is a native Command Code slash command.
+    supportsCompaction: true,
+  };
+  return makeAcpAdapterV2({
+    instanceId: options.instanceId,
+    flavor,
+    crypto: options.crypto,
+    fileSystem: options.fileSystem,
+    idAllocator: options.idAllocator,
+    serverConfig: options.serverConfig,
+    selfInvocation: options.selfInvocation,
+    ...(options.nativeLogging === undefined ? {} : { nativeLogging: options.nativeLogging }),
+  });
+}
+
+export type CommandCodeAdapterV2DriverEnv =
+  | ChildProcessSpawner.ChildProcessSpawner
+  | Crypto.Crypto
+  | FileSystem.FileSystem
+  | IdAllocator.IdAllocatorV2
+  | Path.Path
+  | ProviderEventLoggers.ProviderEventLoggers
+  | ServerConfig.ServerConfig;
+
+export const CommandCodeAdapterV2Driver: ProviderAdapterDriver<
+  CommandCodeSettings,
+  CommandCodeAdapterV2DriverEnv
+> = {
+  driverKind: COMMAND_CODE_PROVIDER,
+  configSchema: CommandCodeSettings,
+  defaultConfig: (): CommandCodeSettings => DEFAULT_COMMAND_CODE_SETTINGS,
+  create: Effect.fn("CommandCodeAdapterV2Driver.create")(
+    function* (input: ProviderAdapterDriverCreateInput<CommandCodeSettings>) {
+      const hostEnvironment = yield* HostProcessEnvironment;
+      const selfInvocation = yield* resolveSelfInvocation();
+      const childProcessSpawner = yield* ChildProcessSpawner.ChildProcessSpawner;
+      const crypto = yield* Crypto.Crypto;
+      const fileSystem = yield* FileSystem.FileSystem;
+      const idAllocator = yield* IdAllocator.IdAllocatorV2;
+      const providerEventLoggers = yield* ProviderEventLoggers.ProviderEventLoggers;
+      const serverConfig = yield* ServerConfig.ServerConfig;
+      const makeNativeLogger = yield* makeAcpNativeLoggerFactory();
+      return makeCommandCodeAdapterV2({
+        instanceId: input.instanceId,
+        settings: { ...input.config, enabled: input.enabled },
+        environment: mergeProviderInstanceEnvironment(input.environment, hostEnvironment),
+        childProcessSpawner,
+        crypto,
+        fileSystem,
+        idAllocator,
+        serverConfig,
+        selfInvocation,
+        nativeLogging: (threadId) =>
+          makeNativeLogger({
+            nativeEventLogger: providerEventLoggers.native,
+            provider: COMMAND_CODE_PROVIDER,
+            threadId,
+          }),
+      });
+    },
+    (effect, input) =>
+      effect.pipe(
+        Effect.mapError(
+          (cause) =>
+            new ProviderAdapterDriverCreateError({
+              driver: COMMAND_CODE_PROVIDER,
+              instanceId: input.instanceId,
+              detail: "Failed to create Command Code adapter.",
+              cause,
+            }),
+        ),
+      ),
+  ),
+};
