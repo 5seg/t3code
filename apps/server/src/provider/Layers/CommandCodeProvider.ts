@@ -15,6 +15,7 @@ import * as Result from "effect/Result";
 import { ChildProcess, ChildProcessSpawner } from "effect/unstable/process";
 
 import {
+  buildSelectOptionDescriptor,
   buildServerProvider,
   COMPACT_SLASH_COMMAND,
   isCommandMissingCause,
@@ -38,7 +39,22 @@ const COMMAND_CODE_PRESENTATION = {
 const VERSION_PROBE_TIMEOUT_MS = 15_000;
 const MODEL_LIST_TIMEOUT_MS = 20_000;
 const ACP_AUTH_PROBE_TIMEOUT_MS = 20_000;
-const EMPTY_CAPABILITIES = createModelCapabilities({ optionDescriptors: [] });
+// ACP offers the same `effort` select (default medium) for every model; the adapter
+// skips a level the live session does not accept (ponytail: static list, no per-model probe).
+const EMPTY_CAPABILITIES = createModelCapabilities({
+  optionDescriptors: [
+    buildSelectOptionDescriptor({
+      id: "effort",
+      label: "Effort",
+      options: [
+        { value: "low", label: "Low" },
+        { value: "medium", label: "Medium", isDefault: true },
+        { value: "high", label: "High" },
+        { value: "max", label: "Max" },
+      ],
+    }),
+  ],
+});
 
 // "default" keeps the model Command Code has configured (`cmd` settings).
 const COMMAND_CODE_DEFAULT_MODEL: ServerProviderModel = {
@@ -64,8 +80,7 @@ function commandCodeModelsFromSettings(
  * Parses `cmd --list-models`: one `<id>  <description>` row per model under
  * group headings, followed by usage text. Parsing stops at that usage text so
  * headless-only decision models are not offered to chat threads.
- * Reasoning effort is per model and only known to a live session, so the list
- * carries no effort options.
+ * Every model gets the static effort options above.
  */
 function parseCommandCodeModelList(output: string): ReadonlyArray<ServerProviderModel> {
   const models: ServerProviderModel[] = [];
