@@ -165,6 +165,7 @@ function selectOptionValues(option: EffectAcpSchema.SessionConfigOption | undefi
  */
 function applyRequestedSessionConfiguration<E>(input: {
   readonly runtime: AcpSessionRuntime.AcpSessionRuntime["Service"];
+  readonly sessionId: string | undefined;
   readonly runtimeMode: RuntimeMode;
   readonly interactionMode: ProviderInteractionMode | undefined;
   readonly modelSelection:
@@ -214,8 +215,11 @@ function applyRequestedSessionConfiguration<E>(input: {
     ) {
       return;
     }
+    if (!input.sessionId) return;
+    // Command Code exposes modes only through `session/set_mode`; the runtime's
+    // `setMode` goes through a `mode` config option, which it does not have.
     yield* input.runtime
-      .setMode(requestedModeId)
+      .request("session/set_mode", { sessionId: input.sessionId, modeId: requestedModeId })
       .pipe(Effect.mapError((cause) => input.mapError({ cause, method: "session/set_mode" })));
   });
 }
@@ -594,6 +598,7 @@ export function makeCommandCodeAdapter(
 
           yield* applyRequestedSessionConfiguration({
             runtime: acp,
+            sessionId: started.sessionId,
             runtimeMode: input.runtimeMode,
             interactionMode: undefined,
             modelSelection,
@@ -759,6 +764,7 @@ export function makeCommandCodeAdapter(
           const model = turnModelSelection?.model ?? ctx.session.model;
           yield* applyRequestedSessionConfiguration({
             runtime: ctx.acp,
+            sessionId: parseCommandCodeResume(ctx.session.resumeCursor)?.sessionId,
             runtimeMode: ctx.session.runtimeMode,
             interactionMode: input.interactionMode,
             modelSelection:
