@@ -196,7 +196,7 @@ export const checkCommandCodeProviderStatus = Effect.fn("checkCommandCodeProvide
         status: "error",
         auth: { status: "unknown" },
         message: isCommandMissingCause(error)
-          ? "Command Code CLI (`cmd`) is not installed or not on PATH."
+          ? "Command Code CLI (`command-code`) is not installed or not on PATH."
           : "Failed to execute Command Code CLI health check.",
       });
     }
@@ -206,7 +206,7 @@ export const checkCommandCodeProviderStatus = Effect.fn("checkCommandCodeProvide
         version: null,
         status: "error",
         auth: { status: "unknown" },
-        message: "Command Code CLI is installed but timed out while running `cmd --version`.",
+        message: "Command Code CLI is installed but timed out while running `--version`.",
       });
     }
     const versionOutput = versionResult.success.value;
@@ -260,7 +260,7 @@ export const checkCommandCodeProviderStatus = Effect.fn("checkCommandCodeProvide
           version,
           status: "error",
           auth: { status: "unauthenticated" },
-          message: "Command Code is not logged in. Run `cmd login` in a terminal.",
+          message: "Command Code is not logged in. Run `command-code login` in a terminal.",
         },
         { models },
       );

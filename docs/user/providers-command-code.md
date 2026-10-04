@@ -1,21 +1,21 @@
 # Command Code
 
 T3 Code can use your existing Command Code CLI installation (`command-code`, also installed as `cmd`) while keeping its account,
-models, and native session history. Threads run through `cmd acp`.
+models, and native session history. Threads run through `command-code acp`.
 
 ## Set Up Command Code
 
 1. Install Command Code on the machine running the T3 Code server (`npm i -g command-code`).
-2. Run `cmd login` once in a terminal and finish the sign-in.
+2. Run `command-code login` once in a terminal and finish the sign-in.
 3. Open T3 Code Settings, enable Command Code, and refresh the provider.
 
 If `command-code` is not on the server's `PATH`, set Command Code's binary path to the executable. T3 Code
 reads the account you already signed in to; it does not ask for a separate token and cannot sign
-in for you. If the provider shows as not logged in, run `cmd login` and refresh.
+in for you. If the provider shows as not logged in, run `command-code login` and refresh.
 
 ## What Carries Over
 
-The model picker lists the models from `cmd --list-models`, plus a `Command Code default` entry
+The model picker lists the models from `command-code --list-models`, plus a `Command Code default` entry
 that keeps whichever model Command Code has configured. Custom models you add can also carry a
 reasoning effort option. Effort levels differ by model, and a level the model does not offer is
 ignored. Threads resume their native Command Code session, and Command Code's MCP, image, and
@@ -44,7 +44,7 @@ Questions that Command Code asks appear in T3 Code's question panel.
 
 ## Troubleshooting
 
-- If Command Code shows as not installed, confirm `cmd --version` runs on the server machine, set
+- If Command Code shows as not installed, confirm `command-code --version` runs on the server machine, set
   the binary path, and refresh.
 - If no models appear, the provider keeps the `Command Code default` entry. Confirm
-  `cmd --list-models` works on the server.
+  `command-code --list-models` works on the server.
