@@ -31,8 +31,8 @@ describe("commandCodeSessionMode", () => {
     ]);
   });
 
-  it("leaves Auto without a native mode, since Command Code has no equivalent", () => {
-    expect(commandCodeSessionMode("auto")).toBeUndefined();
+  it("runs Auto as supervised, since Command Code has no classifier mode", () => {
+    expect(commandCodeSessionMode("auto")).toBe("default");
   });
 });
 

@@ -29,8 +29,8 @@ T3 Code applies the composer permission mode through Command Code's native sessi
 - **Auto-accept edits** runs `auto-accept`: file edits proceed, riskier actions still ask.
 - **Full access** runs `bypass`: Command Code skips its permission checks.
 
-Command Code has no equivalent of the **Auto** classifier mode, so choosing Auto leaves the session
-in its current Command Code mode. The **Plan** toggle selects Command Code's `plan` mode. The mode
+Command Code has no equivalent of the **Auto** classifier mode, so Auto runs like Supervised and
+asks before commands and file changes. The **Plan** toggle selects Command Code's `plan` mode. The mode
 is applied at the start of each turn.
 
 Questions that Command Code asks appear in T3 Code's question panel.

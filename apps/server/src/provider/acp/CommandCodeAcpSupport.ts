@@ -26,6 +26,9 @@ export const COMMAND_CODE_SUPPORTED_RUNTIME_MODES = [
 /** Native `session/set_mode` ids advertised by `cmd acp`. */
 export function commandCodeSessionMode(runtimeMode: RuntimeMode): string | undefined {
   switch (runtimeMode) {
+    // v1 clients still offer Auto. Command Code has no classifier mode, so fall
+    // back to asking rather than keeping a previously granted `bypass`.
+    case "auto":
     case "approval-required":
       return "default";
     case "auto-accept-edits":
