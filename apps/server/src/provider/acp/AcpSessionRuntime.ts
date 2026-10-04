@@ -222,6 +222,13 @@ export class AcpSessionRuntime extends Context.Service<
       EffectAcpErrors.AcpError
     >;
     /**
+     * Sends only `authenticate` for `methodId` after `initialize`. For agents whose
+     * `authenticate` merely checks a stored credential, so probes can read login
+     * state without opening a session.
+     * @see https://agentclientprotocol.com/protocol/schema#authenticate
+     */
+    readonly authenticate: (methodId: string) => Effect.Effect<void, EffectAcpErrors.AcpError>;
+    /**
      * Initializes the ACP connection, authenticates, and loads, resumes, or creates the session.
      * Concurrent calls share the same in-flight startup and a failed startup may be retried.
      */
@@ -1021,6 +1028,12 @@ export const make = (
       handleExtRequest: acp.handleExtRequest,
       handleExtNotification: acp.handleExtNotification,
       initialize: () => ensureConnected.pipe(Effect.andThen(sendInitialize)),
+      authenticate: (methodId) => {
+        const payload = { methodId } satisfies EffectAcpSchema.AuthenticateRequest;
+        return runLoggedRequest("authenticate", payload, acp.agent.authenticate(payload)).pipe(
+          Effect.asVoid,
+        );
+      },
       start: () => start,
       getEvents: () => Stream.fromQueue(eventQueue),
       drainEvents,
